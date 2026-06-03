@@ -76,19 +76,32 @@ echo "1" > "$LOCK_FILE"
 exec > >(tee -a "$LOG") 2>&1
 log "=== debforge-scx install started ==="
 
-TOTAL=7
+TOTAL=8
 
-# ── Step 1: Kernel check ────────────────────────────────────────────────
-step 1 "Kernel compatibility check"
+# ── Step 1: Kernel / Distro compatibility check ─────────────────────────
+step 1 "System compatibility check"
 if step_is_completed "kernel" && $FLAG_RESUME; then
     skip "already verified"
 else
-    if [ ! -e /sys/kernel/sched_ext/state ]; then
-        KERNEL=$(uname -r)
-        fail "Kernel $KERNEL does not support sched_ext (need >= 6.12 with CONFIG_SCHED_CLASS_EXT=y).\n  Install a backports kernel first."
+    IS_TRIXIE=false
+    if grep -q "trixie" /etc/os-release 2>/dev/null || \
+       grep -q "^13" /etc/debian_version 2>/dev/null; then
+        IS_TRIXIE=true
     fi
-    KERNEL=$(uname -r)
-    info "Kernel $KERNEL supports sched_ext"
+
+    if [ ! -e /sys/kernel/sched_ext/state ]; then
+        if $IS_TRIXIE; then
+            KERNEL=$(uname -r)
+            info "Kernel $KERNEL does not support sched_ext, but Debian Trixie detected."
+            info "Installation will proceed. Reboot into a 6.12+ kernel to use sched_ext."
+        else
+            KERNEL=$(uname -r)
+            fail "Kernel $KERNEL does not support sched_ext (need >= 6.12 with CONFIG_SCHED_CLASS_EXT=y).\n  Install a backports kernel first."
+        fi
+    else
+        KERNEL=$(uname -r)
+        info "Kernel $KERNEL supports sched_ext"
+    fi
     step_completed "kernel"
     ok
 fi
@@ -240,8 +253,26 @@ else
     info "Step 6 skipped (--skip-gui)"
 fi
 
-# ── Step 7: Cleanup ─────────────────────────────────────────────────────
-step 7 "Cleanup"
+# ── Step 7: Install systemd drop-in for kernel check ────────────────────
+if ! $FLAG_SKIP_LOADER; then
+    step 7 "Installing systemd kernel-compatibility drop-in"
+    if step_is_completed "dropin" && $FLAG_RESUME; then
+        skip "already installed"
+    else
+        info "Installing systemd drop-in to skip scx_loader when kernel lacks sched_ext..."
+        sudo mkdir -p /etc/systemd/system/scx_loader.service.d
+        sudo cp "$SCRIPT_DIR/data/scx_loader-kernel-check.conf" \
+            /etc/systemd/system/scx_loader.service.d/kernel-check.conf
+        sudo systemctl daemon-reload 2>/dev/null || true
+        step_completed "dropin"
+        ok
+    fi
+else
+    info "Step 7 skipped (--skip-loader)"
+fi
+
+# ── Step 8: Cleanup ─────────────────────────────────────────────────────
+step 8 "Cleanup"
 rm -rf "$BUILD" "$STATE_DIR" "$LOCK_FILE"
 done_s "Installation complete."
 echo ""

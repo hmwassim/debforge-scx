@@ -3,6 +3,7 @@
 #include "scx_utils.h"
 
 #include <QApplication>
+#include <QLineEdit>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFrame>
@@ -41,12 +42,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_marqueeTimer->setInterval(200);
     connect(m_marqueeTimer, &QTimer::timeout, this, &MainWindow::updateMarquee);
 
-    if (scx_utils::isScxctlInstalled()) {
-        buildNormalMode();
-    } else {
-        buildSetupMode();
-        m_statusLabel->setText("scxctl not found");
-    }
+    checkKernelAndBuildUi();
 
     QTimer::singleShot(0, this, [this]() {
         adjustSize();
@@ -295,7 +291,89 @@ void MainWindow::buildNormalMode() {
     m_statusTimer->start();
 }
 
+void MainWindow::checkKernelAndBuildUi() {
+    auto [supported, msg] = scx_utils::checkKernelSupport();
+    m_kernelSupported = supported;
+
+    if (!supported) {
+        m_statusDot->setStyleSheet("color: #cc0000;");
+        m_statusLabel->setText("Kernel unsupported \u2014 " + msg);
+        m_stopBtn->setEnabled(false);
+        m_tabs->addTab(buildUnsupportedPage(), "Unsupported Kernel");
+        return;
+    }
+
+    if (scx_utils::isScxctlInstalled()) {
+        buildNormalMode();
+    } else {
+        buildSetupMode();
+        m_statusLabel->setText("scxctl not found");
+    }
+}
+
+QWidget *MainWindow::buildUnsupportedPage() {
+    auto *page = new QWidget;
+    auto *l = new QVBoxLayout(page);
+    l->setAlignment(Qt::AlignCenter);
+
+    auto *icon = new QLabel("\u26a0\ufe0f");
+    QFont if2 = icon->font();
+    if2.setPointSize(28);
+    icon->setFont(if2);
+    icon->setAlignment(Qt::AlignCenter);
+    l->addWidget(icon);
+
+    auto *title = new QLabel("Kernel Unsupported");
+    QFont tf = title->font();
+    tf.setPointSize(16);
+    tf.setBold(true);
+    title->setFont(tf);
+    title->setAlignment(Qt::AlignCenter);
+    l->addWidget(title);
+
+    auto *sub = new QLabel("Does not support sched_ext");
+    sub->setAlignment(Qt::AlignCenter);
+    sub->setStyleSheet("color: #999; font-size: 13px;");
+    l->addWidget(sub);
+
+    auto *hint = new QLabel("Install a kernel with sched_ext support:");
+    hint->setAlignment(Qt::AlignCenter);
+    hint->setStyleSheet("color: #ccc; margin-top: 12px;");
+    l->addWidget(hint);
+
+    auto *cmd = new QLineEdit(
+        "sudo apt install -t trixie-backports linux-image-amd64 linux-headers-amd64");
+    cmd->setReadOnly(true);
+    cmd->setAlignment(Qt::AlignCenter);
+    cmd->setStyleSheet(
+        "QLineEdit { background: #2d2d2d; color: #88dd88; border: 1px solid #555; "
+        "border-radius: 4px; padding: 6px 10px; font-family: monospace; font-size: 12px; }");
+    QFontMetrics fm2(cmd->font());
+    cmd->setMinimumWidth(fm2.horizontalAdvance(cmd->text()) + 30);
+    l->addWidget(cmd);
+
+    auto *note = new QLabel(
+        "Or any Linux 6.12+ kernel with CONFIG_SCHED_CLASS_EXT enabled.\n"
+        "Select the command above to copy, then reboot after installing.");
+    note->setWordWrap(true);
+    note->setAlignment(Qt::AlignCenter);
+    note->setStyleSheet("color: #777; font-size: 11px; margin-top: 8px;");
+    l->addWidget(note);
+
+    return page;
+}
+
 void MainWindow::refreshStatus() {
+    auto [kernelOk, kernelMsg] = scx_utils::checkKernelSupport();
+    if (!kernelOk) {
+        m_statusDot->setStyleSheet("color: #cc0000;");
+        m_statusLabel->setText("Kernel unsupported");
+        m_statusLabel->setToolTip(kernelMsg);
+        m_stopBtn->setEnabled(false);
+        toggleTrayIcon(false);
+        m_marqueeTimer->stop();
+        return;
+    }
     auto s = scx_utils::getSchedulerStatus();
     if (s.active) {
         m_statusDot->setStyleSheet("color: #00cc00;");

@@ -30,6 +30,8 @@ private:
     void buildUi();
     void buildSetupMode();
     void buildNormalMode();
+    QWidget *buildUnsupportedPage();
+    void checkKernelAndBuildUi();
     void log(const QString &msg);
     void toggleTrayIcon(bool running, const QString &name = {});
 
@@ -51,4 +53,6 @@ private:
     QTimer *m_marqueeTimer = nullptr;
     int m_marqueeOffset = 0;
     QString m_marqueeText;
+
+    bool m_kernelSupported = true;
 };

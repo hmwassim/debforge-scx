@@ -12,6 +12,7 @@ public:
     explicit ControlTab(QWidget *parent = nullptr);
     void refreshSchedulerList();
     void stopScheduler();
+    void setKernelUnsupported(bool unsupported);
 
 signals:
     void logMessage(const QString &msg);

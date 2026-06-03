@@ -46,6 +46,7 @@ ok
 # Remove system files
 info "Removing system files..."
 sudo rm -f /usr/lib/systemd/system/scx_loader.service
+sudo rm -rf /etc/systemd/system/scx_loader.service.d
 sudo rm -f /usr/share/dbus-1/system-services/org.scx.Loader.service
 sudo rm -f /usr/share/dbus-1/system.d/org.scx.Loader.conf
 sudo rm -f /usr/share/dbus-1/interfaces/org.scx.Loader.xml

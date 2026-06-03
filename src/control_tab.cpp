@@ -105,6 +105,27 @@ void ControlTab::refreshSchedulerList() {
     m_modeCombo->blockSignals(false);
 }
 
+void ControlTab::setKernelUnsupported(bool unsupported) {
+    m_schedCombo->setEnabled(!unsupported);
+    m_modeCombo->setEnabled(!unsupported);
+    m_startSwitchBtn->setEnabled(!unsupported);
+    m_refreshBtn->setEnabled(!unsupported);
+    m_persistCb->setEnabled(!unsupported);
+    if (unsupported) {
+        m_schedCombo->setToolTip("Kernel does not support sched-ext");
+        m_modeCombo->setToolTip("Kernel does not support sched-ext");
+        m_startSwitchBtn->setToolTip("Kernel does not support sched-ext");
+        m_refreshBtn->setToolTip("Kernel does not support sched-ext");
+        m_persistCb->setToolTip("Kernel does not support sched-ext");
+    } else {
+        m_schedCombo->setToolTip({});
+        m_modeCombo->setToolTip({});
+        m_startSwitchBtn->setToolTip({});
+        m_refreshBtn->setToolTip({});
+        m_persistCb->setToolTip({});
+    }
+}
+
 void ControlTab::onSchedChanged() {
     QString bare = m_schedCombo->currentData().toString();
     if (bare.isEmpty()) return;
