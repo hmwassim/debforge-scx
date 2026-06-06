@@ -7,8 +7,16 @@ set -euo pipefail
 SCX_REPO="https://github.com/sched-ext/scx.git"
 LOADER_REPO="https://github.com/sched-ext/scx-loader.git"
 BUILD="/tmp/debforge-scx-build"
-export CARGO_HOME="$BUILD/cargo-home"
-export RUSTUP_HOME="$BUILD/rustup-home"
+
+# Use debforge's shared Rust sandbox if available, else local ephemeral one
+SHARED_CARGO="/opt/debforge/.cargo"
+if [ -d "$SHARED_CARGO" ]; then
+    export CARGO_HOME="$SHARED_CARGO"
+    export RUSTUP_HOME="/opt/debforge/.rustup"
+else
+    export CARGO_HOME="$BUILD/cargo-home"
+    export RUSTUP_HOME="$BUILD/rustup-home"
+fi
 LOG="/tmp/debforge-scx-install.log"
 STATE_DIR="/tmp/debforge-scx-state"
 STEP_FILE="$STATE_DIR/completed_steps"
@@ -136,8 +144,8 @@ fi
 
 # ── Step 3: Install Rust (sandboxed) ────────────────────────────────────
 step 3 "Rust toolchain (sandboxed)"
-if [ -f "$CARGO_HOME/bin/cargo" ] && $FLAG_RESUME && step_is_completed "rust"; then
-    skip "already installed"
+if [ -f "$CARGO_HOME/bin/cargo" ]; then
+    skip "already available at $CARGO_HOME"
 else
     info "Installing Rust into sandbox ($CARGO_HOME)..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
