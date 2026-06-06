@@ -18,11 +18,13 @@ echo -e "  ${YELLOW}║    DebForge SCX — Uninstaller        ║${NC}"
 echo -e "  ${YELLOW}╚══════════════════════════════════════╝${NC}"
 echo ""
 
-# Confirm
-read -r -p "  Remove all sched-ext components? [y/N] " REPLY
-if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
-    info "Cancelled."
-    exit 0
+# Confirm (skip if SKIP_PROMPT is set)
+if [ "${SKIP_PROMPT:-}" != "1" ]; then
+    read -r -p "  Remove all sched-ext components? [y/N] " REPLY
+    if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+        info "Cancelled."
+        exit 0
+    fi
 fi
 
 # Stop service
@@ -76,6 +78,14 @@ STATE_DIR="$HOME/.local/state/debforge-scx"
 if [ -d "$STATE_DIR" ]; then
     info "Removing user state: $STATE_DIR"
     rm -rf "$STATE_DIR"
+fi
+
+# Clean version tracking state
+VERSIONS_FILE="/var/lib/debforge-scx/versions"
+if [ -f "$VERSIONS_FILE" ]; then
+    info "Removing version state..."
+    sudo rm -f "$VERSIONS_FILE"
+    sudo rmdir "$(dirname "$VERSIONS_FILE")" 2>/dev/null || true
 fi
 
 echo ""

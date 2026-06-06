@@ -181,6 +181,12 @@ if ! $FLAG_SKIP_SCHED; then
         done
 
         step_completed "scx"
+        local scx_hash
+        scx_hash=$(git -C "$BUILD/scx" rev-parse HEAD 2>/dev/null || true)
+        if [ -n "$scx_hash" ]; then
+            sudo mkdir -p /var/lib/debforge-scx
+            echo "SCX_COMMIT=$scx_hash" | sudo tee /var/lib/debforge-scx/versions >/dev/null
+        fi
         ok
     fi
 else
@@ -223,6 +229,11 @@ if ! $FLAG_SKIP_LOADER; then
             sudo tee /etc/scx_loader/config.toml >/dev/null || fail "config write failed"
 
         step_completed "loader"
+        local loader_hash
+        loader_hash=$(git -C "$BUILD/loader" rev-parse HEAD 2>/dev/null || true)
+        if [ -n "$loader_hash" ]; then
+            echo "SCX_LOADER_COMMIT=$loader_hash" | sudo tee -a /var/lib/debforge-scx/versions >/dev/null
+        fi
         ok
     fi
 else
