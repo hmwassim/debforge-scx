@@ -33,16 +33,10 @@ step_is_completed() {
     [ -f "$STEP_FILE" ] && grep -qxF "$1" "$STEP_FILE" 2>/dev/null
 }
 
-fetch_latest_version() {
+fetch_latest_tag() {
     OWNER_REPO="${REPO#https://github.com/}"
     API="https://api.github.com/repos/$OWNER_REPO/releases/latest"
-    TAG=$(curl -sL "$API" | grep -m1 '"tag_name"' | sed 's/.*"tag_name": "//;s/".*//')
-    if [ -z "$TAG" ]; then
-        fail "Could not determine latest release from $REPO"
-    fi
-    VERSION="${TAG#v}"
-    echo "$VERSION"
-    echo "$TAG"
+    curl -sL "$API" | grep -m1 '"tag_name"' | sed 's/.*"tag_name": "//;s/".*//'
 }
 
 cleanup() { rm -f "$LOCK_FILE"; }
@@ -134,31 +128,40 @@ else
     ok
 fi
 
-# ── Step 3: Install scx-scheds + scx-tools ─────────────────────────────
+# ── Step 3: Install scx-scheds + scx-tools (if missing) ────────────────
 step 3 "Installing scx-scheds + scx-tools"
-if step_is_completed "debs" && $FLAG_RESUME; then
-    skip "already installed"
+if command -v scxctl &>/dev/null && command -v scx_loader &>/dev/null; then
+    skip "already installed (scxctl and scx_loader found)"
 else
-    rm -rf "$DEB_DIR"
-    mkdir -p "$DEB_DIR"
-
-    if [ -n "$FLAG_LOCAL_DEBS" ]; then
-        info "Using .debs from $FLAG_LOCAL_DEBS..."
-        cp "$FLAG_LOCAL_DEBS"/scx-scheds_*_amd64.deb "$DEB_DIR/" 2>/dev/null || fail "scx-scheds .deb not found in $FLAG_LOCAL_DEBS"
-        cp "$FLAG_LOCAL_DEBS"/scx-tools_*_amd64.deb "$DEB_DIR/" 2>/dev/null || fail "scx-tools .deb not found in $FLAG_LOCAL_DEBS"
+    if step_is_completed "debs" && $FLAG_RESUME; then
+        skip "already installed"
     else
-        read -r VERSION TAG <<< "$(fetch_latest_version)"
-        info "Latest release: $TAG"
-        BASE_URL="$REPO/releases/download/$TAG"
-        info "Downloading scx-scheds..."
-        curl -sL "$BASE_URL/scx-scheds_${VERSION}_amd64.deb" -o "$DEB_DIR/scx-scheds_${VERSION}_amd64.deb" || fail "scx-scheds download failed"
-        info "Downloading scx-tools..."
-        curl -sL "$BASE_URL/scx-tools_${VERSION}_amd64.deb" -o "$DEB_DIR/scx-tools_${VERSION}_amd64.deb" || fail "scx-tools download failed"
-    fi
+        rm -rf "$DEB_DIR"
+        mkdir -p "$DEB_DIR"
 
-    info "Installing scx-scheds..."
-    sudo apt install -y "$DEB_DIR"/*.deb || fail "scx-scheds install failed"
-    ok
+        if [ -n "$FLAG_LOCAL_DEBS" ]; then
+            info "Using .debs from $FLAG_LOCAL_DEBS..."
+            cp "$FLAG_LOCAL_DEBS"/scx-scheds_*_amd64.deb "$DEB_DIR/" 2>/dev/null || fail "scx-scheds .deb not found in $FLAG_LOCAL_DEBS"
+            cp "$FLAG_LOCAL_DEBS"/scx-tools_*_amd64.deb "$DEB_DIR/" 2>/dev/null || fail "scx-tools .deb not found in $FLAG_LOCAL_DEBS"
+        else
+            TAG=$(fetch_latest_tag)
+            if [ -z "$TAG" ]; then
+                fail "Could not determine latest release from $REPO"
+            fi
+            VERSION="${TAG#v}"
+            BASE_URL="$REPO/releases/download/$TAG"
+            info "Latest release: $TAG"
+            info "Downloading scx-scheds..."
+            curl -sL "$BASE_URL/scx-scheds_${VERSION}_amd64.deb" -o "$DEB_DIR/scx-scheds_${VERSION}_amd64.deb" || fail "scx-scheds download failed"
+            info "Downloading scx-tools..."
+            curl -sL "$BASE_URL/scx-tools_${VERSION}_amd64.deb" -o "$DEB_DIR/scx-tools_${VERSION}_amd64.deb" || fail "scx-tools download failed"
+        fi
+
+        info "Installing scx-scheds + scx-tools..."
+        sudo apt install -y "$DEB_DIR"/*.deb || fail "install failed"
+        step_completed "debs"
+        ok
+    fi
 fi
 
 # ── Step 4: Build & install GUI ─────────────────────────────────────────
