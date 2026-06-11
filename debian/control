@@ -13,14 +13,14 @@ Architecture: any
 Depends: ${shlibs:Depends},
          ${misc:Depends},
          polkitd,
+         scx-scheds (>= 1.1.0),
+         scx-tools (>= 1.1.0),
 Description: Qt6 GUI for managing sched-ext BPF schedulers on Debian 13+
  SCX Switcher is a Qt6 GUI that lets you install, switch, and monitor
  sched-ext BPF CPU schedulers (scx_bpfland, scx_lavd, scx_rusty, ...).
  .
- The separate install.sh script handles the full build-from-source
- pipeline: build dependencies, Rust bootstrap, building the scx scheduler
- collection and scx-loader/scxctl from upstream, and installing systemd,
- D-Bus, and PolKit configuration files.
+ The scx-scheds and scx-tools packages provide the scheduler binaries and
+ scx-loader/scxctl runtime. This package only provides the GUI.
  .
  Once installed, the GUI provides:
   - One-click scheduler start, stop, and switch

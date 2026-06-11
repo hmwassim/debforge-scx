@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scx-switcher — Complete uninstall of sched-ext + GUI
+# scx-switcher — Uninstall the GUI only (leaves scx-scheds + scx-tools)
 set -euo pipefail
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; NC='\033[0m'
@@ -20,45 +20,23 @@ echo ""
 
 # Confirm (skip if SKIP_PROMPT is set)
 if [ "${SKIP_PROMPT:-}" != "1" ]; then
-    read -r -p "  Remove all sched-ext components? [y/N] " REPLY
+    read -r -p "  Remove scx-switcher GUI only? (scx-scheds + scx-tools stay) [y/N] " REPLY
     if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
         info "Cancelled."
         exit 0
     fi
 fi
 
-# Stop service
-info "Stopping scx_loader service..."
-sudo systemctl disable --now scx_loader 2>/dev/null || warn "scx_loader not running"
-sudo systemctl disable --now scx_loader.service 2>/dev/null || true
+# Remove GUI binary
+info "Removing GUI binary..."
+sudo rm -f /usr/bin/scx-switcher
 ok
 
-# Remove binaries
-info "Removing binaries..."
-sudo rm -f /usr/bin/scx_loader /usr/bin/scxctl /usr/bin/scx-switcher
-for f in /usr/bin/scx_*; do
-    [ -f "$f" ] || continue
-    case "$(basename "$f")" in
-        scx_arena_selftests|scx_beerland|scx_bpfland|scx_cake|scx_chaos|scx_cosmos|scx_flash|scx_flow|scx_lavd|scx_layered|scx_mitosis|scx_p2dq|scx_pandemonium|scx_rlfifo|scx_rustland|scx_rusty|scx_tickless)
-            sudo rm -f "$f" ;;
-    esac
-done
-ok
-
-# Remove system files
-info "Removing system files..."
-sudo rm -f /usr/lib/systemd/system/scx_loader.service
-sudo rm -rf /etc/systemd/system/scx_loader.service.d
-sudo rm -f /usr/share/dbus-1/system-services/org.scx.Loader.service
-sudo rm -f /usr/share/dbus-1/system.d/org.scx.Loader.conf
-sudo rm -f /usr/share/dbus-1/interfaces/org.scx.Loader.xml
-sudo rm -f /usr/share/polkit-1/actions/org.scx.Loader.policy
-sudo rm -f /usr/share/polkit-1/actions/com.scx-switcher.policy
-ok
-
-# Remove config
-info "Removing config..."
-sudo rm -rf /etc/scx_loader
+# Remove systemd kernel-check drop-in (installed by scx-switcher)
+info "Removing systemd kernel-check drop-in..."
+sudo rm -f /etc/systemd/system/scx_loader.service.d/kernel-check.conf
+sudo rmdir /etc/systemd/system/scx_loader.service.d 2>/dev/null || true
+sudo systemctl daemon-reload 2>/dev/null || true
 ok
 
 # Remove desktop/metainfo/icons
@@ -68,19 +46,23 @@ sudo rm -f /usr/share/metainfo/scx-switcher.metainfo.xml
 sudo rm -f /usr/share/icons/hicolor/scalable/apps/scx-switcher.svg
 ok
 
-# Reload systemd
-info "Reloading systemd..."
-sudo systemctl daemon-reload
+# Remove PolKit policy
+info "Removing PolKit policy..."
+sudo rm -f /usr/share/polkit-1/actions/com.scx-switcher.policy
 ok
 
-# Clean user state
+# Remove kernel-check drop-in from share as well
+sudo rm -f /usr/share/scx-switcher/scx_loader-kernel-check.conf
+sudo rmdir /usr/share/scx-switcher 2>/dev/null || true
+
+# Remove user state
 STATE_DIR="$HOME/.local/state/scx-switcher"
 if [ -d "$STATE_DIR" ]; then
     info "Removing user state: $STATE_DIR"
     rm -rf "$STATE_DIR"
 fi
 
-# Clean version tracking state
+# Remove version tracking state
 VERSIONS_FILE="/var/lib/scx-switcher/versions"
 if [ -f "$VERSIONS_FILE" ]; then
     info "Removing version state..."
@@ -90,5 +72,7 @@ fi
 
 echo ""
 info "Uninstall complete."
-info "You may also remove Rust: rustup self uninstall"
+echo ""
+info "To also remove schedulers and tools:"
+info "  sudo apt remove scx-scheds scx-tools"
 echo ""
