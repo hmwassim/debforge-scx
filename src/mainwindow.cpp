@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "control_tab.h"
 #include "scx_utils.h"
+#include "config.h"
 
 #include <QApplication>
 #include <QLineEdit>
@@ -144,67 +145,10 @@ void MainWindow::buildSetupMode() {
 
 void MainWindow::buildNormalMode() {
     m_controlTab = new ControlTab;
-    connect(m_controlTab, &ControlTab::logMessage, this, &MainWindow::log);
+    connect(m_controlTab, &ControlTab::logMessage, this, [this](const QString &msg) {
+        log(msg);
+    });
     connect(m_controlTab, &ControlTab::statusRefreshRequested, this, &MainWindow::refreshStatus);
-
-    struct SchedRef {
-        QString bare, display, category, desc;
-        QStringList modes;
-    };
-
-    static const QList<SchedRef> ALL_SCHED_REF = {
-        {"bpfland", "BPFland", "Gaming / Interactive",
-         "A vruntime-based scheduler prioritising interactive tasks that block frequently. "
-         "Cache-topology aware \u2014 keeps tasks near their L2/L3 cache. Recommended default for "
-         "desktop and gaming.",
-         {"auto", "gaming", "lowlatency", "powersave", "server"}},
-        {"lavd", "LAVD", "Gaming / Low Latency",
-         "Latency-Aware Virtual Deadline scheduler. Computes a latency-criticality score per "
-         "task and assigns virtual deadlines. Core Compaction keeps active cores at high "
-         "frequency. Autopilot mode auto-switches between performance/balanced/powersave.",
-         {"auto", "gaming", "lowlatency", "powersave", "server"}},
-        {"rusty", "Rusty", "Desktop / Server",
-         "Partitions CPUs by last-level cache domain to minimise cross-cache migration. "
-         "Good scalability on high core-count systems. Hybrid BPF + userspace design.",
-         {"auto", "gaming"}},
-        {"flash", "Flash", "Desktop / Soft RT",
-         "Emphasises fairness and predictability over prioritising interactive tasks. "
-         "Good for batch, encoding, and audio workloads.",
-         {"auto", "gaming", "powersave"}},
-        {"cosmos", "Cosmos", "General Purpose",
-         "Lightweight locality-first scheduler. Keeps tasks on the same CPU using local "
-         "DSQs when not saturated. Under load switches to deadline-based policy. "
-         "10\u00b5s default time slices. Low overhead general-purpose choice.",
-         {"auto", "gaming", "lowlatency", "powersave", "server"}},
-        {"layered", "Layered", "Power Users",
-         "Classifies threads into named layers (like cgroups) with independent scheduling "
-         "policies per layer. Highly flexible but requires manual JSON config.",
-         {"auto"}},
-        {"nest", "Nest", "Lightly-Loaded",
-         "Places tasks on already-warm, high-frequency cores to keep turbo boost active. "
-         "Effective when CPU utilisation is low to moderate.",
-         {"auto", "powersave"}},
-        {"p2dq", "P2DQ", "Mixed Desktop/Server",
-         "Pick-2 randomised load balancing keeps queues shallow. Simple design means low "
-         "scheduler overhead. PELT-based load tracking.",
-         {"auto", "gaming", "powersave", "server"}},
-        {"tickless", "Tickless", "Cloud / HPC",
-         "Routes scheduling through a small pool of primary CPUs, allowing others to run "
-         "tickless (no scheduler interrupts). Reduces OS noise for VMs and HPC.",
-         {"auto", "powersave", "server"}},
-        {"simple", "Simple", "Reference / Testing",
-         "Minimal FIFO/least-runtime policy. No topology awareness. Useful as a baseline "
-         "for benchmarking and understanding sched_ext.",
-         {"auto"}},
-        {"beerland", "Beerland", "Gaming / Desktop",
-         "A reduced-overhead variant of scx_bpfland by the same author. Strips back "
-         "expensive per-task tracking for lower scheduler overhead on busy systems.",
-         {"auto", "gaming", "lowlatency", "powersave", "server"}},
-        {"rustland", "Rustland", "Userspace / Educational",
-         "Predecessor to bpfland with similar logic but running in userspace (Rust). "
-         "More readable for learning but adds context-switch overhead.",
-         {"auto"}},
-    };
 
     auto *refTab = new QWidget;
     auto *refLayout = new QVBoxLayout(refTab);
@@ -217,12 +161,12 @@ void MainWindow::buildNormalMode() {
 
     QStringList installed = scx_utils::listSchedulers();
     if (installed.isEmpty()) {
-        installed = {"bpfland", "lavd", "rusty", "flash", "layered",
-                     "cosmos", "nest", "p2dq", "simple", "tickless"};
+        log("No schedulers installed");
+        return;
     }
 
-    for (const auto &r : ALL_SCHED_REF) {
-        if (!installed.contains(r.bare))
+    for (const auto &schedInfo : ALL_SCHEDULERS) {
+        if (!installed.contains(schedInfo.bare))
             continue;
 
         auto *card = new QGroupBox;
@@ -230,27 +174,27 @@ void MainWindow::buildNormalMode() {
         cl->setContentsMargins(10, 6, 10, 6);
 
         auto *hl = new QHBoxLayout;
-        auto *nl = new QLabel(r.display);
+        auto *nl = new QLabel(schedInfo.display);
         QFont nf = nl->font();
         nf.setPointSize(12);
         nf.setBold(true);
         nl->setFont(nf);
         hl->addWidget(nl);
-        hl->addWidget(new QLabel(QString("(scx_%1)").arg(r.bare)));
+        hl->addWidget(new QLabel(QString("(scx_%1)").arg(schedInfo.bare)));
         hl->addStretch();
-        auto *cl2 = new QLabel(r.category);
+        auto *cl2 = new QLabel(schedInfo.category);
         cl2->setStyleSheet("color: #88aaff; font-size: 11px; padding: 2px 6px; "
                            "border: 1px solid #6688cc; border-radius: 4px;");
         hl->addWidget(cl2);
         cl->addLayout(hl);
 
-        auto *dl = new QLabel(r.desc);
+        auto *dl = new QLabel(schedInfo.desc);
         dl->setWordWrap(true);
         dl->setStyleSheet("color: #bbb; font-size: 12px;");
         cl->addWidget(dl);
 
         QStringList modeLabels;
-        for (const auto &m : r.modes)
+        for (const auto &m : schedInfo.modes)
             modeLabels << scx_utils::humanizeMode(m);
         auto *ml = new QLabel(QString("Supported modes: %1").arg(modeLabels.join(", ")));
         ml->setStyleSheet("color: #88dd88; font-size: 11px; margin-top: 4px;");
@@ -377,16 +321,16 @@ void MainWindow::refreshStatus() {
     auto s = scx_utils::getSchedulerStatus();
     if (s.active) {
         m_statusDot->setStyleSheet("color: #00cc00;");
-        QString text = QString("Running: %1 (%2)")
-            .arg(scx_utils::humanizeScheduler(s.name),
-                 scx_utils::humanizeMode(s.mode));
+        QString schedName = scx_utils::humanizeScheduler(s.name);
+        QString modeName = scx_utils::humanizeMode(s.mode);
+        QString text = QString("Running: %1 (%2)").arg(schedName, modeName);
+
         m_statusLabel->setText(text);
         m_statusLabel->setToolTip(text);
         m_stopBtn->setEnabled(true);
         toggleTrayIcon(true, s.name);
 
-        QFontMetrics fm(m_statusLabel->font());
-        if (fm.horizontalAdvance(text) > m_statusLabel->width()) {
+        if (text.length() > 50) {
             m_marqueeText = text;
             m_marqueeOffset = 0;
             m_marqueeTimer->start();
@@ -404,12 +348,16 @@ void MainWindow::refreshStatus() {
 }
 
 void MainWindow::updateMarquee() {
-    m_marqueeOffset++;
-    if (m_marqueeOffset > m_marqueeText.length() + 4)
+    m_marqueeOffset += 2;
+    if (m_marqueeOffset > m_marqueeText.length())
         m_marqueeOffset = 0;
+
+    int splitPos = m_marqueeOffset - 4;
+    if (splitPos < 0) splitPos = 0;
+
     m_statusLabel->setText(
-        m_marqueeText.mid(m_marqueeOffset) + "    " +
-        m_marqueeText.left(m_marqueeOffset));
+        m_marqueeText.mid(splitPos) + "    " +
+        m_marqueeText.left(splitPos));
 }
 
 void MainWindow::onStopClicked() {

@@ -1,4 +1,5 @@
 #include "priv_ops.h"
+#include "config.h"
 
 #include <QProcess>
 #include <QTemporaryFile>
@@ -26,7 +27,7 @@ static bool runPrivileged(const QStringList &args, QString *output = nullptr) {
 }
 
 bool isPolkitAgentRunning() {
-    return true;
+    return !QStandardPaths::findExecutable(PKEXEC).isEmpty();
 }
 
 bool startScheduler(const QString &sched, const QString &mode) {

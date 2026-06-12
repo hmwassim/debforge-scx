@@ -1,6 +1,7 @@
 #include "control_tab.h"
 #include "scx_utils.h"
 #include "priv_ops.h"
+#include "config.h"
 
 #include <QVBoxLayout>
 #include <QGridLayout>
@@ -141,7 +142,7 @@ void ControlTab::onSchedChanged() {
 void ControlTab::onStartSwitch() {
     QString sched = m_schedCombo->currentData().toString();
     if (sched.isEmpty()) {
-        QMessageBox::warning(this, "Error", "Select a scheduler");
+        QMessageBox::warning(this, "Error", ERROR_SCHED_NOT_INSTALLED);
         return;
     }
     QString mode = m_modeCombo->currentData().toString();
@@ -149,10 +150,7 @@ void ControlTab::onStartSwitch() {
     scx_utils::saveState(sched, mode);
 
     if (!priv_ops::isPolkitAgentRunning()) {
-        QMessageBox::warning(this, "PolKit Agent Not Found",
-            "No PolKit authentication agent is running.\n\n"
-            "Run this command in a terminal:\n"
-            "  pkexec scxctl start --sched " + sched + " --mode " + mode);
+        QMessageBox::warning(this, "PolKit Agent Not Found", ERROR_NO_POLKIT);
         return;
     }
 
@@ -174,7 +172,7 @@ void ControlTab::onStartSwitch() {
         emit logMessage("Done");
         priv_ops::writeConfigToml(sched, mode);
     } else {
-        emit logMessage("Failed \u2014 check PolKit authorization");
+        emit logMessage(ERROR_SWITCH_FAILED);
     }
     emit statusRefreshRequested();
 }
@@ -185,16 +183,14 @@ void ControlTab::stopScheduler() {
 
 void ControlTab::onStop() {
     if (!priv_ops::isPolkitAgentRunning()) {
-        QMessageBox::warning(this, "PolKit Agent Not Found",
-            "No PolKit authentication agent is running.\n\n"
-            "Run this in a terminal:\n  pkexec scxctl stop");
+        QMessageBox::warning(this, "PolKit Agent Not Found", ERROR_NO_POLKIT);
         return;
     }
     emit logMessage("Stopping scheduler...");
     if (priv_ops::stopScheduler())
         emit logMessage("Stopped \u2014 back to EEVDF");
     else
-        emit logMessage("Failed to stop \u2014 check PolKit authorization");
+        emit logMessage(ERROR_STOP_FAILED);
     emit statusRefreshRequested();
 }
 
@@ -202,10 +198,7 @@ void ControlTab::onPersistToggled(bool checked) {
     if (m_ignorePersist) return;
 
     if (!priv_ops::isPolkitAgentRunning()) {
-        QMessageBox::warning(this, "PolKit Agent Not Found",
-            "No PolKit authentication agent is running.\n\n"
-            "Run this in a terminal:\n  pkexec systemctl " +
-            QString(checked ? "enable" : "disable") + " --now scx_loader.service");
+        QMessageBox::warning(this, "PolKit Agent Not Found", ERROR_NO_POLKIT);
         m_ignorePersist = true;
         m_persistCb->setChecked(!checked);
         m_ignorePersist = false;
@@ -217,7 +210,7 @@ void ControlTab::onPersistToggled(bool checked) {
         if (priv_ops::enableService())
             emit logMessage("Enabled \u2014 last scheduler will apply at next boot");
         else {
-            emit logMessage("Failed to enable");
+            emit logMessage("Failed to enable: " + ERROR_PERSIST_FAILED_ENABLE);
             m_ignorePersist = true;
             m_persistCb->setChecked(false);
             m_ignorePersist = false;
@@ -227,7 +220,7 @@ void ControlTab::onPersistToggled(bool checked) {
         if (priv_ops::disableService())
             emit logMessage("Disabled \u2014 boot stays on EEVDF");
         else {
-            emit logMessage("Failed to disable");
+            emit logMessage("Failed to disable: " + ERROR_PERSIST_FAILED_DISABLE);
             m_ignorePersist = true;
             m_persistCb->setChecked(true);
             m_ignorePersist = false;
