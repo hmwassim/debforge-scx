@@ -1,5 +1,10 @@
 build/
 obj-*/
+debian/.debhelper/
+debian/files
+debian/*.substvars
+debian/*.debhelper
+debian/scx-switcher/
 *.swp
 *.swo
 *~
