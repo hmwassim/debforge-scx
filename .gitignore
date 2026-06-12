@@ -1,5 +1,12 @@
 build/
+obj-*/
 *.swp
 *.swo
 *~
 .DS_Store
+*.deb
+*.buildinfo
+*.changes
+*.dsc
+*.tar.xz
+*.tar.gz

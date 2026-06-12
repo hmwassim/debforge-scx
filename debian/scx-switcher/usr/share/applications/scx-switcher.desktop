@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=SCX Switcher
+Comment=Manage sched-ext CPU schedulers
+Exec=scx-switcher
+Icon=scx-switcher
+Terminal=false
+Type=Application
+Categories=System;Utility;
+Keywords=scheduler;scx;sched-ext;cpu;
