@@ -1,11 +1,12 @@
 Source: scx-switcher
 Section: admin
 Priority: optional
-Maintainer: SCX Switcher Maintainers <scx-switcher@hmwassim.com>
+Maintainer: HM. Wassim <hmwassim95@gmail.com>
 Build-Depends: debhelper-compat (= 13),
                cmake,
                qt6-base-dev,
-               g++ (>= 12),
+               libgl-dev,
+               g++ (>= 12)
 Standards-Version: 4.7.0
 
 Package: scx-switcher
@@ -15,7 +16,7 @@ Depends: ${shlibs:Depends},
          polkitd,
          pkexec,
          scx-scheds (>= 1.1.0),
-         scx-tools (>= 1.1.0),
+         scx-tools (>= 1.1.0)
 Description: Qt6 GUI for managing sched-ext BPF schedulers on Debian 13+
  SCX Switcher is a Qt6 GUI that lets you install, switch, and monitor
  sched-ext BPF CPU schedulers (scx_bpfland, scx_lavd, scx_rusty, ...).

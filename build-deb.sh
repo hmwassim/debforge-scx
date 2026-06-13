@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
+# Build a .deb for scx-switcher.
+# Requires: debhelper, cmake, qt6-base-dev, libgl-dev, g++ (>= 12)
+#   sudo apt install debhelper cmake qt6-base-dev libgl-dev g++
 set -euo pipefail
 cd "$(dirname "$0")"
 
-dpkg-buildpackage -us -uc
+echo "==> Building scx-switcher .deb…"
+# -b: binary-only build (no source tarball — appropriate for local builds)
+# -us -uc: skip signing
+dpkg-buildpackage -us -uc -b
 
+# dpkg-buildpackage writes output to the PARENT directory.
 mkdir -p build
-mv ../scx-switcher_*.deb build/ 2>/dev/null || true
-mv ../scx-switcher-dbgsym_*.deb build/ 2>/dev/null || true
+mv ../scx-switcher_*.deb          build/ 2>/dev/null || true
+mv ../scx-switcher-dbgsym_*.deb   build/ 2>/dev/null || true
 
-rm -f ../scx-switcher_*.buildinfo ../scx-switcher_*.changes \
-      ../scx-switcher_*.dsc ../scx-switcher_*.tar.xz ../scx-switcher_*.tar.gz 2>/dev/null || true
+# Clean up the metadata files left in the parent directory.
+rm -f ../scx-switcher_*.buildinfo \
+      ../scx-switcher_*.changes   2>/dev/null || true
 
-echo "==> Done. .deb in build/"
+echo ""
+echo "==> Done. Package in build/:"
 ls -lh build/scx-switcher_*.deb

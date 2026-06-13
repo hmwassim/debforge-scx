@@ -17,4 +17,26 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/scxctl</annotate>
   </action>
+
+  <action id="com.scx-switcher.ctl-systemctl">
+    <description>Enable/disable scx_loader auto-start</description>
+    <message>Authentication is required to change scx_loader auto-start settings</message>
+    <defaults>
+      <allow_any>auth_admin_keep</allow_any>
+      <allow_inactive>auth_admin_keep</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/systemctl</annotate>
+  </action>
+
+  <action id="com.scx-switcher.write-config">
+    <description>Write scx_loader scheduler configuration</description>
+    <message>Authentication is required to write the scheduler configuration</message>
+    <defaults>
+      <allow_any>auth_admin_keep</allow_any>
+      <allow_inactive>auth_admin_keep</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/tee</annotate>
+  </action>
 </policyconfig>

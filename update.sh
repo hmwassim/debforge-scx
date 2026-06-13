@@ -29,14 +29,18 @@ if [ "$(id -u)" -eq 0 ]; then
     fail "Do not run as root."
 fi
 
-exec > >(tee -a "$LOG") 2>&1
+# Avoid set -e killing us on tee failure
+exec > >(tee -a "$LOG") 2>&1 || true
 log "=== scx-switcher update started ==="
 
 # Detect latest release
 OWNER_REPO="${REPO#https://github.com/}"
 API="https://api.github.com/repos/$OWNER_REPO/releases/latest"
-TAG=$(curl -sL "$API" | jq -r '.tag_name' 2>/dev/null || \
-      curl -sL "$API" | grep -m1 '"tag_name"' | sed 's/.*"tag_name": "//;s/".*//')
+if command -v jq &>/dev/null; then
+    TAG=$(curl -sL "$API" | jq -r '.tag_name' 2>/dev/null || true)
+else
+    TAG=$(curl -sL "$API" | grep -m1 '"tag_name"' | sed 's/.*"tag_name": "//;s/".*//' 2>/dev/null || true)
+fi
 if [ -z "$TAG" ]; then
     fail "Could not determine latest release from $REPO"
 fi
@@ -62,16 +66,28 @@ ok
 
 # Step 2: Install .debs
 info "Installing scx-scheds + scx-tools..."
-sudo apt install -y "$DEB_DIR"/*.deb || fail "install failed"
+deb_files=("$DEB_DIR"/*.deb)
+if [ ${#deb_files[@]} -eq 0 ] || [ ! -f "${deb_files[0]}" ]; then
+    fail "No .deb files found in $DEB_DIR"
+fi
+sudo apt install -y "${deb_files[@]}" || fail "install failed"
 ok
 
 # Step 3: Rebuild GUI
 info "Rebuilding SCX Switcher GUI..."
 cd "$SCRIPT_DIR"
 rm -rf build
-cmake -B build -DCMAKE_BUILD_TYPE=Release || fail "cmake configure failed"
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr || fail "cmake configure failed"
 cmake --build build -j "$(nproc)" || fail "cmake build failed"
 sudo cmake --install build || fail "cmake install failed"
+ok
+
+# Step 4: Refresh systemd kernel-check drop-in
+info "Installing systemd kernel-compatibility drop-in..."
+sudo mkdir -p /etc/systemd/system/scx_loader.service.d
+sudo cp "$SCRIPT_DIR/data/scx_loader-kernel-check.conf" \
+    /etc/systemd/system/scx_loader.service.d/kernel-check.conf
+sudo systemctl daemon-reload 2>/dev/null || true
 ok
 
 rm -rf "$DEB_DIR"

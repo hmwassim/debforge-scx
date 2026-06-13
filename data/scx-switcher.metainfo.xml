@@ -5,27 +5,19 @@
   <summary>Qt6 GUI for managing sched-ext BPF CPU schedulers</summary>
   <description>
     <p>
-      SCX Switcher provides everything needed to install and manage
-      sched-ext BPF schedulers on Debian 13+ (Trixie).
+      SCX Switcher provides a Qt6 GUI for managing sched-ext BPF CPU
+      schedulers on Debian 13+ (Trixie).
     </p>
     <p>
-      The installer downloads and installs pre-built scx-scheds and
-      scx-tools packages, builds the GUI from source, and configures
-      systemd, D-Bus, and PolKit integration.
-    </p>
-    <p>
-      Once installed, the GUI lets you start, stop, and switch schedulers
-      with one click, view live status with auto-refresh, enable boot
-      persistence, and browse a reference of all available schedulers.
+      Start, stop, and switch schedulers with one click, view live
+      status with auto-refresh, enable boot persistence via
+      scx_loader, and browse a reference of all available schedulers
+      with descriptions and supported modes.
     </p>
   </description>
   <launchable type="desktop-id">scx-switcher.desktop</launchable>
   <url type="homepage">https://github.com/hmwassim/scx-switcher</url>
-  <screenshots>
-    <screenshot type="default">
-      <caption>Main window</caption>
-    </screenshot>
-  </screenshots>
+  <project_license>GPL-3.0-or-later</project_license>
   <categories>
     <category>System</category>
   </categories>

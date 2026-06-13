@@ -1,15 +1,16 @@
 #pragma once
 
 #include <QMainWindow>
-#include <QScrollBar>
 #include <QLabel>
 #include <QPushButton>
 #include <QTextEdit>
 #include <QTabWidget>
 #include <QTimer>
 #include <QSystemTrayIcon>
-#include <QMenu>
 #include <QCloseEvent>
+#include <QMenu>
+
+#include "config.h"
 
 class ControlTab;
 
@@ -18,43 +19,43 @@ class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(QWidget *parent = nullptr);
 
-    static const QString APP_NAME;
-    static const QString APP_VERSION;
+    static constexpr const char *APP_NAME    = "SCX Switcher";
+    static constexpr const char *APP_VERSION = APP_VERSION_STR;
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void refreshStatus();
     void onStopClicked();
-    void updateMarquee();
 
 private:
-    void buildUi();
-    void buildSetupMode();
+    void buildShell();
+    void onKernelResult(bool supported, const QString &detail);
     void buildNormalMode();
-    void buildReferenceTab();
-    QWidget *buildUnsupportedPage();
-    void checkKernelAndBuildUi();
-    void log(const QString &msg);
-    void toggleTrayIcon(bool running, const QString &name = {});
+    void buildUnsupportedPage();
+    void buildSetupPage();
+    void buildReferenceTab(const QStringList &installed);
 
-    void closeEvent(QCloseEvent *event) override;
+    void appendLog(const QString &msg);
+    void updateStatusBar(bool active, const QString &name, const QString &mode);
+    void setTray(bool active, const QString &schedName = {});
 
-    QLabel *m_statusDot = nullptr;
-    QLabel *m_statusLabel = nullptr;
-    QPushButton *m_stopBtn = nullptr;
+    static QIcon dotIcon(const QColor &color);
 
-    QTabWidget *m_tabs = nullptr;
-    ControlTab *m_controlTab = nullptr;
+    QLabel      *m_dot        = nullptr;
+    QLabel      *m_statusText = nullptr;
+    QPushButton *m_stopBtn    = nullptr;
 
-    QTextEdit *m_logView = nullptr;
+    QTabWidget  *m_tabs       = nullptr;
+    ControlTab  *m_ctrlTab    = nullptr;
+    QTextEdit   *m_log        = nullptr;
 
-    QSystemTrayIcon *m_tray = nullptr;
+    QSystemTrayIcon *m_tray     = nullptr;
+    QMenu           *m_trayMenu = nullptr;
 
-    QTimer *m_statusTimer = nullptr;
+    QTimer *m_pollTimer                  = nullptr;
+    QMetaObject::Connection m_statusConn;
 
-    QTimer *m_marqueeTimer = nullptr;
-    int m_marqueeOffset = 0;
-    QString m_marqueeText;
-
-    bool m_kernelChecked = false;
-    bool m_refreshing = false;
+    bool m_kernelOk                      = false;
 };

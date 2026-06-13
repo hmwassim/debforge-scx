@@ -27,9 +27,9 @@ if [ "${SKIP_PROMPT:-}" != "1" ]; then
     fi
 fi
 
-# Remove GUI binary
-info "Removing GUI binary..."
-sudo rm -f /usr/bin/scx-switcher
+# Disable service first if active (clean shutdown)
+info "Disabling scx_loader auto-start..."
+sudo systemctl disable scx_loader.service 2>/dev/null || true
 ok
 
 # Remove systemd kernel-check drop-in (installed by scx-switcher)
@@ -37,6 +37,11 @@ info "Removing systemd kernel-check drop-in..."
 sudo rm -f /etc/systemd/system/scx_loader.service.d/kernel-check.conf
 sudo rmdir /etc/systemd/system/scx_loader.service.d 2>/dev/null || true
 sudo systemctl daemon-reload 2>/dev/null || true
+ok
+
+# Remove GUI binary
+info "Removing GUI binary..."
+sudo rm -f /usr/bin/scx-switcher
 ok
 
 # Remove desktop/metainfo/icons
@@ -55,19 +60,23 @@ ok
 sudo rm -f /usr/share/scx-switcher/scx_loader-kernel-check.conf
 sudo rmdir /usr/share/scx-switcher 2>/dev/null || true
 
-# Remove user state
+# Remove user state (ask first)
 STATE_DIR="$HOME/.local/state/scx-switcher"
 if [ -d "$STATE_DIR" ]; then
-    info "Removing user state: $STATE_DIR"
-    rm -rf "$STATE_DIR"
-fi
-
-# Remove version tracking state
-VERSIONS_FILE="/var/lib/scx-switcher/versions"
-if [ -f "$VERSIONS_FILE" ]; then
-    info "Removing version state..."
-    sudo rm -f "$VERSIONS_FILE"
-    sudo rmdir "$(dirname "$VERSIONS_FILE")" 2>/dev/null || true
+    if [ "${SKIP_PROMPT:-}" != "1" ]; then
+        read -r -p "  Remove user state directory ($STATE_DIR)? [y/N] " REPLY
+        if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+            info "Removing user state: $STATE_DIR"
+            rm -rf "$STATE_DIR"
+            ok
+        else
+            info "Keeping user state: $STATE_DIR"
+        fi
+    else
+        info "Removing user state: $STATE_DIR"
+        rm -rf "$STATE_DIR"
+        ok
+    fi
 fi
 
 echo ""
